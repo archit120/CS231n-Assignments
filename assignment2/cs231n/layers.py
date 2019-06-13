@@ -26,14 +26,16 @@ def affine_forward(x, w, b):
     # will need to reshape the input into rows.                               #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    td = np.prod(x.shape[1:])
+    x2 = np.reshape(x, (x.shape[0], td))
+    #print(x.shape, x2.shape, w.shape, b.shape)
+    y = np.matmul(x2, w) + b
+    out = y
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-    cache = (x, w, b)
+    cache = (np.copy(x), w, b)
     return out, cache
 
 
@@ -59,8 +61,13 @@ def affine_backward(dout, cache):
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    td = np.prod(x.shape[1:])
+    x2 = np.reshape(x, (x.shape[0], td))
 
-    pass
+    db = np.sum(dout, 0)
+    dw = np.matmul(x2.T, dout)
+    dx = np.matmul(dout, w.T)
+    dx = np.reshape(dx, x.shape)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -86,13 +93,13 @@ def relu_forward(x):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = x*(1*(x>0))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-    cache = x
+    cache = np.copy(x)
     return out, cache
 
 
@@ -113,7 +120,7 @@ def relu_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dx = dout*(1*(x>0))
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
