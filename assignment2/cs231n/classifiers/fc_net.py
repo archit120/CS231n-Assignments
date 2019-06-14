@@ -200,9 +200,16 @@ class FullyConnectedNet(object):
         self.params['W1'] = np.random.normal(0, weight_scale, (input_dim, hidden_dims[0]))
         self.params['b1'] = np.zeros((hidden_dims[0]))
         
+        if normalization == 'batchnorm' or normalization == 'layernorm':
+            self.params['gamma1'] = np.ones((hidden_dims[0]))
+            self.params['beta1'] =  np.zeros((hidden_dims[0]))
+        
         for i, s in enumerate(hidden_dims[1:]):
             self.params['W'+str(i+2)] = np.random.normal(0, weight_scale, (hidden_dims[i], s))
             self.params['b'+str(i+2)] = np.zeros((s))
+            if normalization == 'batchnorm' or normalization == 'layernorm':
+                self.params['gamma'+str(i+2)] = np.ones((s))
+                self.params['beta'+str(i+2)] = np.zeros((s))
 
         self.params['W'+str(len(hidden_dims)+1)] = np.random.normal(0, weight_scale, (hidden_dims[-1], num_classes))
         self.params['b'+str(len(hidden_dims)+1)] = np.zeros((num_classes))
@@ -274,6 +281,13 @@ class FullyConnectedNet(object):
           b = self.params['b' + str(i+1)]
           x, ca = affine_forward(x, w, b)
           caches[str(i)+'a'] = ca
+          if self.normalization=='batchnorm':
+            x, cb = batchnorm_forward(x, self.params['gamma' + str(i+1)], self.params['beta' + str(i+1)], self.bn_params[i])
+            caches[str(i)+'b'] = cb
+          if self.normalization=='layernorm':
+            x, cb = layernorm_forward(x, self.params['gamma' + str(i+1)], self.params['beta' + str(i+1)], self.bn_params[i])
+            caches[str(i)+'b'] = cb
+
           x, cr = relu_forward(x)
           caches[str(i) + 'r'] = cr
         w = self.params['W'+str(self.num_layers)]
@@ -315,6 +329,10 @@ class FullyConnectedNet(object):
         dout, grads['W'+str(self.num_layers)], grads['b'+str(self.num_layers)] = affine_backward(dout, ca)
         for i in reversed(range(self.num_layers-1)):
           dout = relu_backward(dout, caches[str(i)+'r'])
+          if self.normalization == 'batchnorm':
+            dout, grads['gamma' + str(i+1)], grads['beta' + str(i+1)] = batchnorm_backward_alt(dout, caches[str(i)+'b'])
+          if self.normalization == 'layernorm':
+            dout, grads['gamma' + str(i+1)], grads['beta' + str(i+1)] = layernorm_backward(dout, caches[str(i)+'b'])
           dout, grads['W'+str(i+1)], grads['b'+str(i+1)] = affine_backward(dout, caches[str(i)+'a'])
         
         #print(caches['0a'][0], caches['1a'][0])

@@ -200,8 +200,15 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        mean, var = np.mean(x, 0), np.var(x, 0)
+        x2 = (x-mean)/np.sqrt(var + eps)
+        out = gamma*x2 + beta
 
+        cache = (np.copy(x), mean, var + eps, gamma, beta, np.copy(x2))
+
+        running_mean = momentum*running_mean + (1-momentum)*mean
+        running_var = momentum*running_var + (1-momentum)*var
+        
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
         #                           END OF YOUR CODE                          #
@@ -215,7 +222,13 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        mean, var = running_mean, running_var
+        x2= (x-mean)/np.sqrt(var + eps)
+        out = gamma*x2 + beta
+
+        cache = (np.copy(x), mean, var + eps, gamma, beta, np.copy(x2))
+
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -256,9 +269,14 @@ def batchnorm_backward(dout, cache):
     # might prove to be helpful.                                              #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    
+    dbeta = np.sum(dout, 0)
+    dgamma = np.sum(cache[5]*dout, 0)
+    n = dout.shape[0]
+    dx_temp = dout * cache[3]
+    dvar = np.sum(dx_temp*(cache[0]-cache[1])*-0.5*np.power(cache[2], -3/2), 0, keepdims=True)
+    dmean = np.sum(dx_temp*-1/np.sqrt(cache[2]), 0) #- 2*dvar*np.sum(cache[0]-cache[1], 0, keepdims=True)/n
+    dx = dx_temp/np.sqrt(cache[2]) + dvar * 2 * (cache[0]-cache[1])/n + dmean/n
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -292,8 +310,11 @@ def batchnorm_backward_alt(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
-
+    dbeta = np.sum(dout, 0)
+    dgamma = np.sum(cache[5]*dout, 0)
+    n = dout.shape[0]
+    dx_temp = dout * cache[3]
+    dx = (dx_temp - cache[5]/n*np.sum(dx_temp*cache[5], 0) - 1/n*np.sum(dx_temp, 0))/np.sqrt(cache[2])
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -338,7 +359,11 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    mean, var = np.mean(x, 1, keepdims=True), np.var(x, 1, keepdims=True)
+    x2 = (x-mean)/np.sqrt(var + eps)
+    out = gamma*x2 + beta
+    cache = (np.copy(x), mean, var + eps, gamma, beta, np.copy(x2))
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -373,8 +398,13 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dbeta = np.sum(dout, 0)
+    dgamma = np.sum(cache[5]*dout, 0)
+    n = dout.shape[1]
+    dx_temp = dout * cache[3]
 
+    dx = (dx_temp - cache[5]/n*np.sum(dx_temp*cache[5], 1, keepdims=True) - 1/n*np.sum(dx_temp, 1, keepdims=True))/np.sqrt(cache[2])
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
