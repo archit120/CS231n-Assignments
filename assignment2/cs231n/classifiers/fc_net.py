@@ -281,13 +281,16 @@ class FullyConnectedNet(object):
           b = self.params['b' + str(i+1)]
           x, ca = affine_forward(x, w, b)
           caches[str(i)+'a'] = ca
+          if self.use_dropout:
+            x, cd = dropout_forward(x, self.dropout_param)
+            caches[str(i) + 'd'] = cd
+
           if self.normalization=='batchnorm':
             x, cb = batchnorm_forward(x, self.params['gamma' + str(i+1)], self.params['beta' + str(i+1)], self.bn_params[i])
             caches[str(i)+'b'] = cb
           if self.normalization=='layernorm':
             x, cb = layernorm_forward(x, self.params['gamma' + str(i+1)], self.params['beta' + str(i+1)], self.bn_params[i])
             caches[str(i)+'b'] = cb
-
           x, cr = relu_forward(x)
           caches[str(i) + 'r'] = cr
         w = self.params['W'+str(self.num_layers)]
@@ -329,6 +332,8 @@ class FullyConnectedNet(object):
         dout, grads['W'+str(self.num_layers)], grads['b'+str(self.num_layers)] = affine_backward(dout, ca)
         for i in reversed(range(self.num_layers-1)):
           dout = relu_backward(dout, caches[str(i)+'r'])
+          if self.use_dropout:
+            dout = dropout_backward(dout, caches[str(i)+'d'])
           if self.normalization == 'batchnorm':
             dout, grads['gamma' + str(i+1)], grads['beta' + str(i+1)] = batchnorm_backward_alt(dout, caches[str(i)+'b'])
           if self.normalization == 'layernorm':

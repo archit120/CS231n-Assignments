@@ -364,7 +364,7 @@ def layernorm_forward(x, gamma, beta, ln_param):
     out = gamma*x2 + beta
     cache = (np.copy(x), mean, var + eps, gamma, beta, np.copy(x2))
 
-
+    #print(gamma.shape)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -452,7 +452,8 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        mask = (np.random.uniform(size = x.shape) < p) / p
+        out = x*mask
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -464,7 +465,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        out = x
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -495,7 +496,7 @@ def dropout_backward(dout, cache):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        dx = dout * mask
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -540,9 +541,32 @@ def conv_forward_naive(x, w, b, conv_param):
     # Hint: you can use the function np.pad for padding.                      #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    h_new = 1 + (x.shape[2] + 2*conv_param['pad'] - w.shape[2])//conv_param['stride']
+    w_new = 1 + (x.shape[3] + 2*conv_param['pad'] - w.shape[3])//conv_param['stride']
+    out = np.zeros((x.shape[0], w.shape[0], h_new, w_new))
+    
+    x_pad = np.pad(x, ((0,0),(0,0),(conv_param['pad'],conv_param['pad']),(conv_param['pad'],conv_param['pad'])), 'constant', constant_values = 0)
 
-    pass
+    i = 0
+    j = i
+    stride = conv_param['stride']
+    while i < x.shape[2] + 2*conv_param['pad']:
+        j=0
+        while j < x.shape[3] + 2*conv_param['pad']:
+            #print(i, j)
+            x_sub = x_pad[: , : , i:i+w.shape[2], j:j+w.shape[3]]
+            if x_sub.shape[2] != w.shape[2] or x_sub.shape[3] !=w.shape[3]:
+                break
+            #print(x_sub)
 
+            for k in range(w.shape[0]):
+                x_mul = x_sub * w[k]
+                #print(x_mul.shape)
+                out[:, k, i//stride, j//stride] = np.sum(x_mul, (1,2,3)) + b[k]
+            #print(x_sub.shape)
+            j+=conv_param['stride']
+        i+=conv_param['stride']
+    
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -569,8 +593,70 @@ def conv_backward_naive(dout, cache):
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+ 
+    db = np.sum(dout, (0,2,3))
+    x = cache[0]
+    w = cache[1]
+    conv_param = cache[3]
+    h_new = 1 + (x.shape[2] + 2*conv_param['pad'] - dout.shape[2])//conv_param['stride']
+    w_new = 1 + (x.shape[3] + 2*conv_param['pad'] - dout.shape[3])//conv_param['stride']
 
-    pass
+
+    dw = np.zeros(w.shape)
+    dx = np.zeros(x.shape)
+    x_pad = np.pad(x, ((0,0),(0,0),(conv_param['pad'],conv_param['pad']),(conv_param['pad'],conv_param['pad'])), 'constant', constant_values = 0)
+
+    i = 0
+    j = i
+    stride = conv_param['stride']
+    #print(h_new, w_new)
+    #print(x_pad.shape)
+    #print(x.shape)
+    while i < x_pad.shape[2]:
+        j=0
+        while j < x_pad.shape[3]:
+            #print(i, j)
+            x_sub = x_pad[: , : , i:i+dout.shape[2], j:j+dout.shape[3]]
+            if x_sub.shape[2] != dout.shape[2] or x_sub.shape[3] !=dout.shape[3]:
+                break
+            #print(x_sub)
+
+            for k in range(dout.shape[1]):
+                b = np.repeat(dout[:, k, :, :][:, np.newaxis, :, :], x.shape[1], axis = 1)
+                x_mul = x_sub * b
+                #print(x_mul.shape)
+                dw[k, :, i//stride, j//stride] = np.sum(x_mul, (0,2,3))
+            #print(x_sub.shape)
+            j+=conv_param['stride']
+        i+=conv_param['stride']
+
+    w2 = np.flip(w, (2,3))
+    #print(w2)
+    pad2 = (stride*(x.shape[2] -1) + dout.shape[2] - w.shape[2])//2
+    pad3 = (stride*(x.shape[3] -1) + dout.shape[3] - w.shape[3])//2
+    w_pad = np.pad(w2, ((0,0),(0,0),(pad2,pad2),(pad3,pad3)), 'constant', constant_values = 0)
+    i=0
+    j=0
+    while i < w_pad.shape[2]:
+        j=0
+        while j < w_pad.shape[3]:
+            #print(i, j)
+            w_sub = w_pad[: , : , i:i+dout.shape[2], j:j+dout.shape[3]]
+            if w_sub.shape[2] != dout.shape[2] or w_sub.shape[3] !=dout.shape[3]:
+                break
+            #print(x_sub) 
+
+            for k in range(dout.shape[0]):
+                b = np.repeat(dout[k, :, :, :][:, np.newaxis, :, :], x.shape[1], axis = 1)
+                #print(b.shape)
+                w_mul = w_sub * b
+                #print(w_mul.shape)
+                dx[k, :, i//stride, j//stride] = np.sum(w_mul, (0,2,3))
+            #print(x_sub.shape)
+            j+=conv_param['stride']
+        i+=conv_param['stride']
+    dx = np.flip(dx, (2,3))
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -604,7 +690,23 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    i = 0
+    j = i
+    ph = pool_param['pool_height']
+    pw = pool_param['pool_width']
+    stride = pool_param['stride']
+    h_new = 1 + (x.shape[2] - ph)//stride
+    w_new = 1 + (x.shape[3] - pw)//stride
+    out = np.zeros((x.shape[0], x.shape[1], h_new, w_new))
+    while i < x.shape[2]:
+        j=0
+        while j < x.shape[3]:
+            #print(i, j)
+            x_sub = x[:, :, i:i+ph, j:j+pw]
+            out[:, :, i//stride, j//stride] = np.max(x_sub, (2,3))
+            j+=stride
+        i+=stride
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -631,7 +733,26 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    pool_param = cache[1]
+    x = cache[0]
+    dx = np.zeros(x.shape)
+    i = 0
+    j = i
+    ph = pool_param['pool_height']
+    pw = pool_param['pool_width']
+    stride = pool_param['stride']
+    while i < dout.shape[2]:
+        j=0
+        while j < dout.shape[3]:
+            #print(i, j)
+            for k in range(dout.shape[0]):
+              for l in range(dout.shape[1]):
+                x_sub = x[k, l, i*stride:i*stride+ph, j*stride:j*stride+pw]
+                x_max = np.max(x_sub)
+                dx[x==x_max]= dout[k,l,i,j]
+            #out[:, :, i//stride, j//stride] = np.max(x_sub, (2,3))
+            j+=1
+        i+=1
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -672,9 +793,8 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # Your implementation should be very short; ours is less than five lines. #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
+    out, cache = batchnorm_forward(np.reshape(np.swapaxes(x, 1, 3), (x.shape[0]*x.shape[2]*x.shape[3], x.shape[1])), gamma, beta, bn_param)
+    out = np.swapaxes(np.reshape(out,  (x.shape[0],x.shape[3],x.shape[2], x.shape[1])), 1, 3)
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
@@ -707,7 +827,9 @@ def spatial_batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dx, dgamma, dbeta = batchnorm_backward_alt(np.reshape(np.swapaxes(dout, 1, 3), (dout.shape[0]*dout.shape[2]*dout.shape[3], dout.shape[1])), cache)
+    dx = np.swapaxes(np.reshape(dx,  (dout.shape[0],dout.shape[3],dout.shape[2], dout.shape[1])), 1, 3)
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -747,7 +869,18 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    cache = []
+    c2 = np.reshape(np.swapaxes(np.copy(x), 1, 3), (x.shape[0]*x.shape[2]*x.shape[3], x.shape[1]))
+    pg = x.shape[1]//G
+    out2 = np.zeros(c2.shape)
+    gamma = np.reshape(gamma, (gamma.shape[1]))
+    beta = np.reshape(beta, (beta.shape[1]))
+    for i in range(G):
+      cache.append(0)
+      out2[:, i*pg:(i+1)*pg], cache[i] = layernorm_forward(c2[:, i*pg:(i+1)*pg], gamma[i*pg:(i+1)*pg], beta[i*pg:(i+1)*pg], gn_param)
+    cache.append((gamma, beta, G, gn_param))
+    out =  np.swapaxes(np.reshape(out2,  (x.shape[0],x.shape[3],x.shape[2], x.shape[1])), 1, 3)
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -777,8 +910,21 @@ def spatial_groupnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    G = cache[-1][2]
+    gamma = cache[-1][1]
+    beta = cache[-1][0]
+    pg = dout.shape[1]//G
+    c2 = np.reshape(np.swapaxes((dout), 1, 3), (dout.shape[0]*dout.shape[2]*dout.shape[3], dout.shape[1]))
+    dx2 = np.zeros((dout.shape[0]*dout.shape[2]*dout.shape[3], dout.shape[1]))
+    dg = np.zeros(dout.shape[1])
+    db = np.zeros(dout.shape[1])
+    for i in range(G):
+      dx2[:, i*pg:(i+1)*pg], dg[i*pg:(i+1)*pg], db[i*pg:(i+1)*pg]= layernorm_backward(c2[:, i*pg:(i+1)*pg], cache[i])
 
+    dx2 = np.reshape(dx2,  (dout.shape[0],dout.shape[3],dout.shape[2], dout.shape[1]))
+    dx = np.swapaxes(dx2, 1, 3)
+    dgamma = np.reshape(dg, (1, dout.shape[1], 1, 1))
+    dbeta = np.reshape(db, (1, dout.shape[1], 1, 1))
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
     #                             END OF YOUR CODE                            #
