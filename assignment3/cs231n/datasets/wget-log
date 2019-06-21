@@ -1,0 +1,11 @@
+--2019-06-19 11:22:38--  http://cs231n.stanford.edu/imagenet_val_25.npz
+Resolving cs231n.stanford.edu (cs231n.stanford.edu)... 171.64.68.10
+Connecting to cs231n.stanford.edu (cs231n.stanford.edu)|171.64.68.10|:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 3940548 (3.8M) [text/plain]
+Saving to: ‘imagenet_val_25.npz.1’
+
+imagenet_val_25.npz.1          66%[================================>                 ]   2.49M   127KB/s    eta 10s    imagenet_val_25.npz.1         100%[=================================================>]   3.76M   192KB/s    in 20s     
+
+2019-06-19 11:22:58 (192 KB/s) - ‘imagenet_val_25.npz.1’ saved [3940548/3940548]
+
